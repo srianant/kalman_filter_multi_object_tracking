@@ -8,6 +8,13 @@ Multi Object Tracker Using Kalman Filter & Hungarian Algorithm
 - Usage:  
 $ python2.7 objectTracking.py  
 
+- Design:  
+
+<img src="images/KF_arch.png" height="400"/>  
+
+- Output:  
+
+<img src="images/KF_output.png" height="400"/>  
 
 - Pre-requisite:  
     - Python2.7  
