@@ -75,9 +75,9 @@ def main():
                     for j in range(len(tracker.tracks[i].trace)-1):
                         # Draw trace line
                         x1 = tracker.tracks[i].trace[j][0][0]
-                        y1 = tracker.tracks[i].trace[j][1][0]
-                        x2 = tracker.tracks[i].trace[j+1][0][0]
-                        y2 = tracker.tracks[i].trace[j+1][1][0]
+                        y1 = tracker.tracks[i].trace[j][0][1]
+                        x2 = tracker.tracks[i].trace[j+1][1][0]
+                        y2 = tracker.tracks[i].trace[j+1][1][1]
                         clr = tracker.tracks[i].track_id % 9
                         cv2.line(frame, (int(x1), int(y1)), (int(x2), int(y2)),
                                  track_colors[clr], 2)
