@@ -37,7 +37,7 @@ def main():
     detector = Detectors()
 
     # Create Object Tracker
-    tracker = Tracker(20, 10, 10, 100)
+    tracker = Tracker(20, 50, 10, 100)
 
     # Variables initialization
     skip_frame_count = 0

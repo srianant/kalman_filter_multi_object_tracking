@@ -41,7 +41,7 @@ class Track(object):
                                         [0, 1, 0, dt],
                                         [0, 0, 1, 0],
                                         [0, 0, 0, 1]]).astype(np.float32)
-        KF.processNoiseCov = np.diag([2, 2, 5, 5]).astype(np.float32)
+        KF.processNoiseCov = np.diag([20, 20, 200, 200]).astype(np.float32) * dt
 
         KF.statePost = np.array([[detection[0]],
                                  [detection[1]],
@@ -164,7 +164,7 @@ class Tracker(object):
             if (self.tracks[i].position_error() > self.max_position_error):
                 del_tracks.append(i)
 
-        for id in del_tracks:  # only when skipped frame exceeds max
+        for id in np.flipud(del_tracks):  # only when skipped frame exceeds max
             if id < len(self.tracks):
                 del self.tracks[id]
                 del assignment[id]
