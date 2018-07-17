@@ -9,9 +9,9 @@
 
 # Import python libraries
 import numpy as np
-from kalman_filter import KalmanFilter
 from common import dprint
 from scipy.optimize import linear_sum_assignment
+from cv2 import KalmanFilter
 
 
 class Track(object):
@@ -20,7 +20,7 @@ class Track(object):
         None
     """
 
-    def __init__(self, prediction, trackIdCount):
+    def __init__(self, detection, trackIdCount):
         """Initialize variables used by Track class
         Args:
             prediction: predicted centroids of object to be tracked
@@ -29,10 +29,44 @@ class Track(object):
             None
         """
         self.track_id = trackIdCount  # identification of each track object
-        self.KF = KalmanFilter(prediction)  # KF instance to track this object
-        self.prediction = np.asarray(prediction)  # predicted centroids (x,y)
+        self.KF = self.create_kalmanfilter(detection)  # KF instance to track this object
+
+        self.prediction = np.asarray(detection)  # predicted centroids (x,y)
         self.skipped_frames = 0  # number of frames skipped undetected
         self.trace = []  # trace path
+
+    def create_kalmanfilter(self, detection):
+        KF = KalmanFilter(4, 2)
+        dt = 1.0 / 30.0
+        KF.transitionMatrix = np.array([[1, 0, dt, 0],
+                                        [0, 1, 0, dt],
+                                        [0, 0, 1, 0],
+                                        [0, 0, 0, 1]]).astype(np.float32)
+        KF.processNoiseCov = np.diag([2, 2, 5, 5]).astype(np.float32)
+
+        KF.statePost = np.array([[detection[0]],
+                                 [detection[1]],
+                                 [0],
+                                 [0]]).astype(np.float32)
+        KF.errorCovPost = np.diag([5, 5, 100, 100]).astype(np.float32)
+
+        KF.measurementMatrix = np.array([[1, 0, 0, 0],
+                                         [0, 1, 0, 0]]).astype(np.float32)
+        KF.measurementNoiseCov = np.eye(2).astype(np.float32)
+
+        KF.statePre = KF.statePost  # maybe necessary?
+        KF.errorCovPre = KF.errorCovPost
+        return KF
+
+    def predict(self):
+        x = self.KF.predict()
+        y = np.dot(self.KF.measurementMatrix, x)
+        return y
+
+    def correct(self, y):
+        self.KF.correct(y.astype(np.float32))
+        y = np.dot(self.KF.measurementMatrix, self.KF.statePost)
+        return y
 
 
 class Tracker(object):
@@ -154,14 +188,14 @@ class Tracker(object):
 
         # Update KalmanFilter state, lastResults and tracks trace
         for i in range(len(assignment)):
-            self.tracks[i].KF.predict()
+            self.tracks[i].predict()
 
             if(assignment[i] != -1):
                 self.tracks[i].skipped_frames = 0
-                self.tracks[i].prediction = self.tracks[i].KF.correct(
+                self.tracks[i].prediction = self.tracks[i].correct(
                                             detections[assignment[i]])
             else:
-                self.tracks[i].prediction = self.tracks[i].KF.predict()
+                self.tracks[i].prediction = self.tracks[i].predict()
 
             if(len(self.tracks[i].trace) > self.max_trace_length):
                 for j in range(len(self.tracks[i].trace) -
@@ -169,4 +203,3 @@ class Tracker(object):
                     del self.tracks[i].trace[j]
 
             self.tracks[i].trace.append(self.tracks[i].prediction)
-            # self.tracks[i].KF.lastResult = self.tracks[i].prediction
