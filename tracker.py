@@ -29,7 +29,7 @@ class Track(object):
             None
         """
         self.track_id = trackIdCount  # identification of each track object
-        self.KF = KalmanFilter()  # KF instance to track this object
+        self.KF = KalmanFilter(prediction)  # KF instance to track this object
         self.prediction = np.asarray(prediction)  # predicted centroids (x,y)
         self.skipped_frames = 0  # number of frames skipped undetected
         self.trace = []  # trace path
@@ -159,10 +159,9 @@ class Tracker(object):
             if(assignment[i] != -1):
                 self.tracks[i].skipped_frames = 0
                 self.tracks[i].prediction = self.tracks[i].KF.correct(
-                                            detections[assignment[i]], 1)
+                                            detections[assignment[i]])
             else:
-                self.tracks[i].prediction = self.tracks[i].KF.correct(
-                                            np.array([[0], [0]]), 0)
+                self.tracks[i].prediction = self.tracks[i].KF.predict()
 
             if(len(self.tracks[i].trace) > self.max_trace_length):
                 for j in range(len(self.tracks[i].trace) -
@@ -170,4 +169,4 @@ class Tracker(object):
                     del self.tracks[i].trace[j]
 
             self.tracks[i].trace.append(self.tracks[i].prediction)
-            self.tracks[i].KF.lastResult = self.tracks[i].prediction
+            # self.tracks[i].KF.lastResult = self.tracks[i].prediction

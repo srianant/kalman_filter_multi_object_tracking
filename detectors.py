@@ -27,7 +27,7 @@ class Detectors(object):
         Return:
             None
         """
-        self.fgbg = cv2.createBackgroundSubtractorMOG2()
+        self.fgbg = cv2.createBackgroundSubtractorMOG2(history=50, varThreshold=100)
 
     def Detect(self, frame):
         """Detect objects in video frame using following pipeline

@@ -25,4 +25,10 @@ $ python2.7 objectTracking.py
 - References:    
   - [Excellent MATLAB tutorial by Student Dave on object tracking](http://studentdavestutorials.weebly.com/multi-bugobject-tracking.html)   
   - [OpenCV Tutorial: Multiple Object Tracking in Real Time by Kyle Hounslow](https://www.youtube.com/watch?annotation_id=annotation_307976421&feature=iv&src_vid=RS_uQGOQIdg&v=bSeFrPrqZ2A)  
+  - [Bug video](https://github.com/Smorodov/Multitarget-tracker/blob/master/data/TrackingBugs.mp4)
+
+ ## Usage
+
+ - Download [Bug video](https://github.com/Smorodov/Multitarget-tracker/blob/master/data/TrackingBugs.mp4) and copy inside `kalman_filter_multi_object_tracking/data` folder
+- Run `python object_tracking.py`
     
