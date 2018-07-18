@@ -9,9 +9,9 @@
 
 # Import python libraries
 import numpy as np
-from kalman_filter import KalmanFilter
 from common import dprint
 from scipy.optimize import linear_sum_assignment
+from cv2 import KalmanFilter
 
 
 class Track(object):
@@ -20,7 +20,7 @@ class Track(object):
         None
     """
 
-    def __init__(self, prediction, trackIdCount):
+    def __init__(self, detection, trackIdCount):
         """Initialize variables used by Track class
         Args:
             prediction: predicted centroids of object to be tracked
@@ -29,10 +29,50 @@ class Track(object):
             None
         """
         self.track_id = trackIdCount  # identification of each track object
-        self.KF = KalmanFilter()  # KF instance to track this object
-        self.prediction = np.asarray(prediction)  # predicted centroids (x,y)
-        self.skipped_frames = 0  # number of frames skipped undetected
+        self.KF = self.init_kalmanfilter(detection)  # KF instance to track this object
+
         self.trace = []  # trace path
+
+    @staticmethod
+    def init_kalmanfilter(detection):
+        KF = KalmanFilter(4, 2)
+        dt = 1.0 / 30.0
+        KF.transitionMatrix = np.array([[1, 0, dt, 0],
+                                        [0, 1, 0, dt],
+                                        [0, 0, 1, 0],
+                                        [0, 0, 0, 1]]).astype(np.float32)
+        KF.processNoiseCov = (np.diag([2, 2, 20, 20]).astype(np.float32) ** 2) * dt
+
+        KF.statePost = np.array([[detection[0]],
+                                 [detection[1]],
+                                 [0],
+                                 [0]]).astype(np.float32)
+        KF.errorCovPost = np.diag([3, 3, 40, 40]).astype(np.float32) ** 2
+
+        KF.measurementMatrix = np.array([[1, 0, 0, 0],
+                                         [0, 1, 0, 0]]).astype(np.float32)
+        KF.measurementNoiseCov = (np.eye(2).astype(np.float32) * 1) ** 2
+
+        KF.statePre = KF.statePost  # maybe necessary?
+        KF.errorCovPre = KF.errorCovPost
+        return KF
+
+    def predict(self):
+        x = self.KF.predict()
+        y = np.dot(self.KF.measurementMatrix, x)
+        return y
+
+    def correct(self, y):
+        self.KF.correct(np.array(y).astype(np.float32))
+        y = np.dot(self.KF.measurementMatrix, self.KF.statePost)
+        return y
+
+    def position_error(self):
+        return np.sqrt(self.KF.errorCovPost[0, 0] + self.KF.errorCovPost[1, 1])
+
+    def position(self):
+        y = np.dot(self.KF.measurementMatrix, self.KF.statePost)
+        return(y)
 
 
 class Tracker(object):
@@ -41,7 +81,7 @@ class Tracker(object):
         None
     """
 
-    def __init__(self, dist_thresh, max_frames_to_skip, max_trace_length,
+    def __init__(self, dist_thresh, max_position_error, max_trace_length,
                  trackIdCount):
         """Initialize variable used by Tracker class
         Args:
@@ -55,7 +95,7 @@ class Tracker(object):
             None
         """
         self.dist_thresh = dist_thresh
-        self.max_frames_to_skip = max_frames_to_skip
+        self.max_position_error = max_position_error
         self.max_trace_length = max_trace_length
         self.tracks = []
         self.trackIdCount = trackIdCount
@@ -93,13 +133,10 @@ class Tracker(object):
         cost = np.zeros(shape=(N, M))   # Cost matrix
         for i in range(len(self.tracks)):
             for j in range(len(detections)):
-                try:
-                    diff = self.tracks[i].prediction - detections[j]
-                    distance = np.sqrt(diff[0][0]*diff[0][0] +
-                                       diff[1][0]*diff[1][0])
-                    cost[i][j] = distance
-                except:
-                    pass
+                diff = self.tracks[i].position() - detections[j]
+                distance = np.sqrt(diff[0][0]**2 +
+                                   diff[1][0]**2)
+                cost[i][j] = distance
 
         # Let's average the squared ERROR
         cost = (0.5) * cost
@@ -115,59 +152,45 @@ class Tracker(object):
         # Identify tracks with no assignment, if any
         un_assigned_tracks = []
         for i in range(len(assignment)):
-            if (assignment[i] != -1):
+            if (assignment[i] != -1 and cost[i][assignment[i]] > self.dist_thresh):
                 # check for cost distance threshold.
                 # If cost is very high then un_assign (delete) the track
-                if (cost[i][assignment[i]] > self.dist_thresh):
-                    assignment[i] = -1
-                    un_assigned_tracks.append(i)
-                pass
-            else:
-                self.tracks[i].skipped_frames += 1
+                assignment[i] = -1
+                un_assigned_tracks.append(i)
 
         # If tracks are not detected for long time, remove them
         del_tracks = []
         for i in range(len(self.tracks)):
-            if (self.tracks[i].skipped_frames > self.max_frames_to_skip):
+            if (self.tracks[i].position_error() > self.max_position_error):
                 del_tracks.append(i)
-        if len(del_tracks) > 0:  # only when skipped frame exceeds max
-            for id in del_tracks:
-                if id < len(self.tracks):
-                    del self.tracks[id]
-                    del assignment[id]
-                else:
-                    dprint("ERROR: id is greater than length of tracks")
+
+        for id in np.flipud(del_tracks):  # only when skipped frame exceeds max
+            if id < len(self.tracks):
+                del self.tracks[id]
+                del assignment[id]
+            else:
+                dprint("ERROR: id is greater than length of tracks")
 
         # Now look for un_assigned detects
         un_assigned_detects = []
         for i in range(len(detections)):
-                if i not in assignment:
-                    un_assigned_detects.append(i)
+            if i not in assignment:
+                un_assigned_detects.append(i)
 
         # Start new tracks
-        if(len(un_assigned_detects) != 0):
-            for i in range(len(un_assigned_detects)):
-                track = Track(detections[un_assigned_detects[i]],
-                              self.trackIdCount)
-                self.trackIdCount += 1
-                self.tracks.append(track)
+        for id in un_assigned_detects:
+            track = Track(detections[id], self.trackIdCount)
+            self.trackIdCount += 1
+            self.tracks.append(track)
 
         # Update KalmanFilter state, lastResults and tracks trace
         for i in range(len(assignment)):
-            self.tracks[i].KF.predict()
+            self.tracks[i].predict()
 
             if(assignment[i] != -1):
-                self.tracks[i].skipped_frames = 0
-                self.tracks[i].prediction = self.tracks[i].KF.correct(
-                                            detections[assignment[i]], 1)
-            else:
-                self.tracks[i].prediction = self.tracks[i].KF.correct(
-                                            np.array([[0], [0]]), 0)
+                self.tracks[i].correct(detections[assignment[i]])
 
             if(len(self.tracks[i].trace) > self.max_trace_length):
-                for j in range(len(self.tracks[i].trace) -
-                               self.max_trace_length):
-                    del self.tracks[i].trace[j]
+                del self.tracks[i].trace[0]
 
-            self.tracks[i].trace.append(self.tracks[i].prediction)
-            self.tracks[i].KF.lastResult = self.tracks[i].prediction
+            self.tracks[i].trace.append(self.tracks[i].position())
