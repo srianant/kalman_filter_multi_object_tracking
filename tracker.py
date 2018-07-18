@@ -41,17 +41,17 @@ class Track(object):
                                         [0, 1, 0, dt],
                                         [0, 0, 1, 0],
                                         [0, 0, 0, 1]]).astype(np.float32)
-        KF.processNoiseCov = np.diag([20, 20, 50, 50]).astype(np.float32) * dt
+        KF.processNoiseCov = (np.diag([2, 2, 20, 20]).astype(np.float32) ** 2) * dt
 
         KF.statePost = np.array([[detection[0]],
                                  [detection[1]],
                                  [0],
                                  [0]]).astype(np.float32)
-        KF.errorCovPost = np.diag([5, 5, 100, 100]).astype(np.float32)
+        KF.errorCovPost = np.diag([3, 3, 40, 40]).astype(np.float32) ** 2
 
         KF.measurementMatrix = np.array([[1, 0, 0, 0],
                                          [0, 1, 0, 0]]).astype(np.float32)
-        KF.measurementNoiseCov = np.eye(2).astype(np.float32)
+        KF.measurementNoiseCov = (np.eye(2).astype(np.float32) * 1) ** 2
 
         KF.statePre = KF.statePost  # maybe necessary?
         KF.errorCovPre = KF.errorCovPost
