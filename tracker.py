@@ -41,7 +41,7 @@ class Track(object):
                                         [0, 1, 0, dt],
                                         [0, 0, 1, 0],
                                         [0, 0, 0, 1]]).astype(np.float32)
-        KF.processNoiseCov = np.diag([20, 20, 200, 200]).astype(np.float32) * dt
+        KF.processNoiseCov = np.diag([20, 20, 50, 50]).astype(np.float32) * dt
 
         KF.statePost = np.array([[detection[0]],
                                  [detection[1]],
