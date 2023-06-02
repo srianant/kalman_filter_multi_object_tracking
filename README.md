@@ -1,10 +1,5 @@
 Multi Object Tracker Using Kalman Filter & Hungarian Algorithm
 ----
-- Author: Srini Ananthakrishnan  
-- Project: DSCI-6008 Final Project
-- Date: 07/14/2017
-
-
 - Usage:  
 $ python2.7 objectTracking.py  
 
